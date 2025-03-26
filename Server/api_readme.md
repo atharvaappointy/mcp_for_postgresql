@@ -1,4 +1,4 @@
-# MCP Server
+# MCP Server - Enhanced for Large Datasets
 
 This enhanced version of the Microservice Control Panel (MCP) has been optimized to handle large datasets (50+ lakh rows) with efficient data extraction capabilities and indexing strategies.
 
@@ -558,30 +558,6 @@ All errors follow a consistent format to help with debugging:
 
 Check the error message for specific information about what went wrong.
 
-## Deployment Considerations
-
-When deploying MCP to production:
-
-1. **Database Connection Pooling:**
-   - Adjust pool settings in `.env` file based on expected load
-   - Default: min=2, max=10 connections
-
-2. **Performance Monitoring:**
-   - Use the `/stats` endpoint to monitor server performance
-   - Consider setting up a monitoring service (e.g., Prometheus, Grafana)
-
-3. **Security:**
-   - Enable HTTPS (not configured by default)
-   - Set up authentication (not included by default)
-   - Consider network isolation for the database
-
-4. **Backups:**
-   - Implement regular database backups
-   - Test restoration procedures
-
-5. **Scaling:**
-   - MCP can be horizontally scaled with a load balancer
-   - Ensure database is appropriately scaled to handle load
 
 ## Testing
 
@@ -799,3 +775,222 @@ Common HTTP status codes:
   - Rate limiting
   - Input validation and sanitization
   - Network security (firewall rules, VPN, etc.)
+
+## Testing
+
+### Unit Tests
+Run the test suite to verify index functionality:
+```
+npm test
+```
+
+This will execute all index management tests, including:
+- Listing existing indexes
+- Creating and dropping indexes
+- Testing query performance with and without indexes
+- Implementing complex indexing strategies
+
+### Performance Testing
+Run the customer churn data test to see performance improvements:
+```
+npm run test:performance
+```
+
+This includes:
+1. Table statistics retrieval
+2. Structural analysis
+3. Paginated query performance
+4. Filtered query performance
+5. Index performance comparison
+
+## Getting Started
+
+1. Start the server:
+```
+npm start
+```
+
+2. Use the Python test client to interact with the MCP:
+```python
+from app import MCPClient
+
+client = MCPClient()
+tables = client.get_all_tables()
+
+```
+
+## Client Integration Examples
+
+### JavaScript
+```javascript
+// Sample JavaScript client to query MCP API
+async function queryMCP() {
+  const response = await fetch('http://localhost:3000/query', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      type: 'getTables'
+    }),
+  });
+  
+  const data = await response.json();
+  console.log(data);
+}
+```
+
+### Python
+```python
+# Sample Python client to query MCP API
+import requests
+
+def query_mcp():
+    response = requests.post('http://localhost:3000/query', json={
+        'type': 'getTables'
+    })
+    return response.json()
+
+# Get a specific row by number - direct access
+def get_row_by_number(table_name, row_number):
+    response = requests.get(f'http://localhost:3000/data/row/{table_name}/{row_number}')
+    return response.json()
+
+# Perform a binary search
+def binary_search(table_name, column, value, operator='='):
+    response = requests.post('http://localhost:3000/data/search', json={
+        'tableName': table_name,
+        'column': column,
+        'value': value,
+        'operator': operator
+    })
+    return response.json()
+```
+
+## Using MCP with AI Applications
+
+When integrating MCP with AI applications, the following patterns work best:
+
+### 1. Efficient Data Retrieval for Training Datasets
+```python
+def fetch_training_data(table_name, filters=None, limit=10000):
+    """Fetch data in chunks to avoid memory issues with large training datasets"""
+    page_size = 1000
+    page = 1
+    all_data = []
+    has_more = True
+    
+    while has_more and len(all_data) < limit:
+        response = requests.post('http://localhost:3000/query', json={
+            'type': 'filteredQuery',
+            'tableName': table_name,
+            'filters': filters,
+            'page': page,
+            'pageSize': page_size
+        })
+        result = response.json()
+        
+        all_data.extend(result['data'])
+        page += 1
+        has_more = result['pagination']['hasNext']
+        
+        if len(all_data) >= limit:
+            all_data = all_data[:limit]
+            break
+            
+    return all_data
+```
+
+### 2. AI-Driven Index Recommendations
+```python
+def get_smart_index_recommendations(table_name, query_patterns):
+    """Get index recommendations based on AI analysis of query patterns"""
+    recommendations = requests.post('http://localhost:3000/query', json={
+        'type': 'recommendIndexes',
+        'tableName': table_name
+    }).json()
+    
+    # Match recommendations with query patterns
+    optimal_indexes = []
+    for pattern in query_patterns:
+        for rec in recommendations['data']:
+            if any(col in pattern['columns'] for col in rec['columns']):
+                optimal_indexes.append({
+                    'columns': rec['columns'],
+                    'priority': pattern['frequency']
+                })
+    
+    return sorted(optimal_indexes, key=lambda x: x['priority'], reverse=True)
+```
+
+### 3. Natural Language to SQL Query Processing
+```python
+def natural_language_query(query_text):
+    """Example of how to integrate MCP with a natural language to SQL processor"""
+    # This would normally be handled by an LLM or other NLP system
+    # This is a simplified example
+    
+    # Detect specific row requests
+    import re
+    row_match = re.search(r"row (?:number\s*)?(\d+)", query_text.lower())
+    
+    if row_match:
+        row_number = int(row_match.group(1))
+        # Extract table name - simplified example
+        if "customer_churn_data" in query_text:
+            return get_row_by_number("customer_churn_data", row_number)
+    
+    # Otherwise perform a filtered query with NLP-extracted parameters
+    # Code would integrate with your NLP system here
+    
+    # Fallback to basic query
+    return requests.post('http://localhost:3000/query', json={
+        'type': 'query',
+        'query': "SELECT * FROM customer_churn_data LIMIT 10"
+    }).json()
+```
+
+## Error Handling
+
+All API endpoints follow a consistent error response pattern:
+
+```json
+{
+  "type": "endpoint_type",
+  "data": null,
+  "error": "Error message describing what went wrong"
+}
+```
+
+Common HTTP status codes:
+- 200: Success
+- 400: Bad Request (missing parameters, invalid input)
+- 404: Not Found (table, index, or row not found)
+- 500: Server Error (database issues, query syntax errors)
+
+## Performance Considerations
+
+1. For tables with millions of rows:
+   - Always use pagination
+   - Utilize direct row access (`/data/row/:tableName/:rowNumber`) when possible
+   - Create appropriate indexes on frequently queried columns
+
+2. For complex queries:
+   - Use the `binarySearchRows` endpoint for finding specific values
+   - Create composite indexes on columns used together in filters
+   - Consider using filtered queries instead of raw SQL for better optimization
+
+3. For write-heavy operations:
+   - Be selective with indexes as they slow down INSERT/UPDATE operations
+   - Use batch operations when possible
+
+## Security Notes
+
+- MCP does not include authentication/authorization by default
+- For production use, implement proper security measures:
+  - API authentication (JWT, OAuth, etc.)
+  - Rate limiting
+  - Input validation and sanitization
+  - Network security (firewall rules, VPN, etc.)
+
+```
