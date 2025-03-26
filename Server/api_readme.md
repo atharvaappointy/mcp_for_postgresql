@@ -1,4 +1,4 @@
-# MCP Server 
+# MCP Server
 
 This enhanced version of the Microservice Control Panel (MCP) has been optimized to handle large datasets (50+ lakh rows) with efficient data extraction capabilities and indexing strategies.
 
@@ -15,6 +15,16 @@ This enhanced version of the Microservice Control Panel (MCP) has been optimized
 ### 3. Advanced Indexing Strategies
 - Create, manage, and recommend database indexes
 - Dramatically improve query performance for large datasets
+
+### 4. Natural Language Processing
+- Process queries written in plain English
+- Support for conversational CRUD operations
+- Automatic intent detection and parameter extraction
+
+### 5. Advanced Search Capabilities  
+- Smart column-based search with optimized query execution
+- Multi-column search with dynamic filtering
+- ID-based record retrieval with primary key optimization
 
 ## Indexing Strategies
 
@@ -105,6 +115,94 @@ Content-Type: application/json
   - `limit` (optional): Number of rows to return (default: 5)
 - **Response**: Array of row objects
 
+### CRUD Operations
+
+#### Create (Insert Data)
+```
+POST /query
+Content-Type: application/json
+
+{
+  "type": "query",
+  "query": "INSERT INTO customer_churn_data (CustomerID, Age, Gender) VALUES ($1, $2, $3)",
+  "params": [123456, 35, "Female"]
+}
+```
+- **Description**: Creates new records in the database
+- **Parameters**:
+  - `query` (required): SQL INSERT statement
+  - `params` (optional): Array of parameter values for prepared statements
+- **Response**: Status information about the operation
+
+#### Read (Query Data)
+```
+POST /query
+Content-Type: application/json
+
+{
+  "type": "filteredQuery",
+  "tableName": "customer_churn_data",
+  "columns": ["CustomerID", "Age", "Gender"],
+  "filters": {
+    "Age": {"operator": ">", "value": 30}
+  },
+  "page": 1,
+  "pageSize": 100
+}
+```
+- **Description**: Retrieves data based on specified filters and columns
+- **Response**: Array of matching records with pagination metadata
+
+#### Update (Modify Data)
+```
+POST /query
+Content-Type: application/json
+
+{
+  "type": "query",
+  "query": "UPDATE customer_churn_data SET Age = $1, Gender = $2 WHERE CustomerID = $3",
+  "params": [36, "Male", 123456]
+}
+```
+- **Description**: Updates existing records in the database
+- **Parameters**:
+  - `query` (required): SQL UPDATE statement
+  - `params` (optional): Array of parameter values for prepared statements
+- **Response**: Status information about the operation
+
+#### Delete (Remove Data)
+```
+POST /query
+Content-Type: application/json
+
+{
+  "type": "query",
+  "query": "DELETE FROM customer_churn_data WHERE CustomerID = $1",
+  "params": [123456]
+}
+```
+- **Description**: Removes records from the database
+- **Parameters**:
+  - `query` (required): SQL DELETE statement
+  - `params` (optional): Array of parameter values for prepared statements
+- **Response**: Status information about the operation
+
+### Batch Operations
+
+#### Batch Insert
+```
+POST /query
+Content-Type: application/json
+
+{
+  "type": "query",
+  "query": "INSERT INTO customer_churn_data (CustomerID, Age, Gender) VALUES ($1, $2, $3), ($4, $5, $6), ($7, $8, $9)",
+  "params": [123456, 35, "Female", 123457, 42, "Male", 123458, 28, "Female"]
+}
+```
+- **Description**: Inserts multiple records in a single operation
+- **Response**: Status information about the operation
+
 ### Query Execution
 
 #### Execute Basic Query
@@ -144,32 +242,6 @@ Content-Type: application/json
 - **Response**: Object containing:
   - `data`: Array of results
   - `pagination`: Pagination metadata (total rows, page, total pages, etc.)
-
-#### Execute Filtered Query
-```
-POST /query
-Content-Type: application/json
-
-{
-  "type": "filteredQuery",
-  "tableName": "customer_churn_data",
-  "columns": ["CustomerID", "Age", "Gender"],
-  "filters": {
-    "Age": {"operator": ">", "value": 30},
-    "Gender": {"operator": "=", "value": "Female"}
-  },
-  "page": 1,
-  "pageSize": 100
-}
-```
-- **Description**: Executes a query with column and filter selection
-- **Parameters**:
-  - `tableName` (required): The table to query
-  - `columns` (optional): Array of column names to retrieve (default: all columns)
-  - `filters` (optional): Object with column filters, where each filter has an operator and value
-  - `page` (optional): Page number (default: 1)
-  - `pageSize` (optional): Number of rows per page (default: 100)
-- **Response**: Object containing data array and pagination metadata
 
 ### Advanced Data Access (For Large Datasets)
 
@@ -265,6 +337,294 @@ Content-Type: application/json
 - **Parameters**:
   - `tableName` (required): The table to analyze
 - **Response**: Array of recommended indexes with explanations
+
+## Advanced Search API
+
+### Find By ID
+```
+POST /search/id
+Content-Type: application/json
+
+{
+  "tableName": "customer_churn_data",
+  "idColumn": "CustomerID",
+  "idValue": 123456
+}
+```
+- **Description**: Retrieves a single record by its ID using optimized primary key search
+- **Parameters**:
+  - `tableName` (required): The name of the table
+  - `idColumn` (required): The column containing the ID
+  - `idValue` (required): The ID value to search for
+- **Response**: The matching record or an error
+
+### Smart Column Search
+```
+POST /search/column
+Content-Type: application/json
+
+{
+  "tableName": "customer_churn_data",
+  "columnName": "Age",
+  "searchValue": 30,
+  "options": {
+    "operator": ">",
+    "fuzzyMatch": false,
+    "caseSensitive": false,
+    "page": 1,
+    "pageSize": 100
+  }
+}
+```
+- **Description**: Performs an intelligent search on a specific column
+- **Parameters**:
+  - `tableName` (required): The name of the table
+  - `columnName` (required): The column to search on
+  - `searchValue` (required): The value to search for
+  - `options` (optional): Additional search options
+    - `operator`: Comparison operator (=, >, <, LIKE, etc.)
+    - `fuzzyMatch`: Whether to use fuzzy matching for text
+    - `caseSensitive`: Whether the search should be case-sensitive
+    - `page`: Page number for pagination
+    - `pageSize`: Page size for pagination
+- **Response**: Matching records with metadata
+
+### Multi-Column Search
+```
+POST /search/multi
+Content-Type: application/json
+
+{
+  "tableName": "customer_churn_data",
+  "columnValues": {
+    "Gender": "Female",
+    "Age": 30
+  },
+  "columnOptions": {
+    "Age": {
+      "operator": ">",
+      "fuzzyMatch": false
+    }
+  },
+  "page": 1,
+  "pageSize": 100
+}
+```
+- **Description**: Searches for records matching multiple column criteria simultaneously
+- **Parameters**:
+  - `tableName` (required): The name of the table
+  - `columnValues` (required): Dictionary mapping column names to search values
+  - `columnOptions` (optional): Dictionary of column-specific search options
+  - `page` (optional): Page number for pagination
+  - `pageSize` (optional): Page size for pagination
+- **Response**: Matching records with metadata
+
+## Natural Language Processing API
+
+### Natural Language Query
+```
+POST /nlp
+Content-Type: application/json
+
+{
+  "query": "Find all customers in New York with age greater than 30"
+}
+```
+- **Description**: Executes a database operation using natural language
+- **Parameters**:
+  - `query` (required): Natural language query
+- **Response**: The operation results
+
+### Supported NLP Operations
+
+#### Search Operations
+- "Find all customers in California"
+- "Show me users with age greater than 30"
+- "Get products where price is less than 100"
+- "List customers sorted by name"
+- "Count records where status is active"
+
+#### Create Operations
+- "Add a new customer with name John Smith and age 35"
+- "Create user with email john@example.com and password 123456"
+- "Insert product with name 'Laptop' and price 999.99"
+
+#### Update Operations
+- "Update customer 123 set status to inactive"
+- "Change the email of user 456 to new@example.com"
+- "Set the price of product 'Laptop' to 899.99"
+
+#### Delete Operations
+- "Delete user with email john@example.com"
+- "Remove customer with id 123"
+- "Delete all products where price is less than 10"
+
+## Interactive Mode
+
+The MCP server includes an interactive command-line interface that allows you to explore and manipulate your database using both structured commands and natural language queries.
+
+### Starting Interactive Mode
+```
+node app.js interactive
+```
+
+### Interactive Commands
+
+#### Natural Language Queries
+Just type your question in plain English, for example:
+- "Find all customers in California"
+- "Show me users with age greater than 30"
+- "Update customer 123 set status to inactive"
+
+#### Data Exploration
+- `list tables` - List all tables
+- `list columns <table>` - List columns for a table
+- `list sample <table> [count]` - Show sample data from a table
+- `list stats <table>` - Show statistics for a table
+
+#### Searching
+- `search id <table> <id_col> <id>` - Find record by ID
+- `search column <table> <col> <val> [operator] [fuzzy=t/f]` - Search on a specific column
+- `search multi <table> <col1>=<val1> <col2>=<val2> ...` - Search with multiple criteria
+
+#### Index Management
+- `index create <table> <col1> [col2...] [unique=t/f]` - Create an index
+- `index list [table]` - List indexes
+- `index drop <index_name>` - Drop an index
+- `index recommend <table>` - Get index recommendations
+
+## Troubleshooting Common Issues
+
+### Case Sensitivity
+
+PostgreSQL table and column names are case-sensitive when quoted and case-insensitive when not quoted. The MCP API handles this automatically for you, but be aware of the following:
+
+1. When creating tables:
+   ```sql
+   -- Creates a table with lowercase column names
+   CREATE TABLE users (id SERIAL, firstname TEXT, lastname TEXT);
+   
+   -- Creates a table with exact case column names
+   CREATE TABLE "Users" ("Id" SERIAL, "FirstName" TEXT, "LastName" TEXT);
+   ```
+
+2. When querying through MCP:
+   - For filteredQuery: The API will automatically match column names case-insensitively
+   - For direct SQL: You need to match case or use double quotes
+
+### LIMIT Clauses in Paginated Queries
+
+When using the paginatedQuery endpoint, do NOT include LIMIT or OFFSET in your SQL query. The API will add these automatically based on the page and pageSize parameters.
+
+**Incorrect:**
+```json
+{
+  "type": "paginatedQuery",
+  "query": "SELECT * FROM customer_churn_data LIMIT 10",
+  "page": 1,
+  "pageSize": 100
+}
+```
+
+**Correct:**
+```json
+{
+  "type": "paginatedQuery",
+  "query": "SELECT * FROM customer_churn_data",
+  "page": 1,
+  "pageSize": 100
+}
+```
+
+### Required Parameters
+
+Make sure to include all required parameters for each endpoint. The most common issues are:
+
+1. Missing `tableName` parameter for table-specific operations
+2. Missing `query` parameter for SQL execution
+3. Missing `indexName` parameter when dropping an index
+
+### Error Response Format
+
+All errors follow a consistent format to help with debugging:
+
+```json
+{
+  "type": "endpointType",
+  "data": null,
+  "error": "Detailed error message"
+}
+```
+
+Check the error message for specific information about what went wrong.
+
+## Deployment Considerations
+
+When deploying MCP to production:
+
+1. **Database Connection Pooling:**
+   - Adjust pool settings in `.env` file based on expected load
+   - Default: min=2, max=10 connections
+
+2. **Performance Monitoring:**
+   - Use the `/stats` endpoint to monitor server performance
+   - Consider setting up a monitoring service (e.g., Prometheus, Grafana)
+
+3. **Security:**
+   - Enable HTTPS (not configured by default)
+   - Set up authentication (not included by default)
+   - Consider network isolation for the database
+
+4. **Backups:**
+   - Implement regular database backups
+   - Test restoration procedures
+
+5. **Scaling:**
+   - MCP can be horizontally scaled with a load balancer
+   - Ensure database is appropriately scaled to handle load
+
+## Testing
+
+### Unit Tests
+Run the test suite to verify index functionality:
+```
+npm test
+```
+
+This will execute all index management tests, including:
+- Listing existing indexes
+- Creating and dropping indexes
+- Testing query performance with and without indexes
+- Implementing complex indexing strategies
+
+### Performance Testing
+Run the customer churn data test to see performance improvements:
+```
+npm run test:performance
+```
+
+This includes:
+1. Table statistics retrieval
+2. Structural analysis
+3. Paginated query performance
+4. Filtered query performance
+5. Index performance comparison
+
+## Getting Started
+
+1. Start the server:
+```
+npm start
+```
+
+2. Use the Python test client to interact with the MCP:
+```python
+from app import MCPClient
+
+client = MCPClient()
+tables = client.get_all_tables()
+
+```
 
 ## Client Integration Examples
 
@@ -439,44 +799,3 @@ Common HTTP status codes:
   - Rate limiting
   - Input validation and sanitization
   - Network security (firewall rules, VPN, etc.)
-
-## Testing
-
-### Unit Tests
-Run the test suite to verify index functionality:
-```
-npm test
-```
-
-This will execute all index management tests, including:
-- Listing existing indexes
-- Creating and dropping indexes
-- Testing query performance with and without indexes
-- Implementing complex indexing strategies
-
-### Performance Testing
-Run the customer churn data test to see performance improvements:
-```
-npm run test:performance
-```
-
-This includes:
-1. Table statistics retrieval
-2. Structural analysis
-3. Paginated query performance
-4. Filtered query performance
-5. Index performance comparison
-
-## Getting Started
-
-1. Start the server:
-```
-npm start
-```
-
-2. Use the Python test client to interact with the MCP:
-```python
-from app import MCPClient
-
-client = MCPClient()
-tables = client.get_all_tables()
